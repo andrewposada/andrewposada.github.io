@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shared plan | Prep</title>
+<meta name="description" content="Someone shared a plan with you in Prep.">
+<meta property="og:title" content="A plan shared with you in Prep">
+<meta property="og:description" content="Open it in Prep to get your own timeline.">
+<style>
+  :root { --forest:#0F3D38; --abyss:#1A5C54; --teal:#2ABFA3; --mint:#7DDDD0; --mist:#D4F5EF; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+         font-family:-apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Segoe UI", sans-serif;
+         background:linear-gradient(160deg,var(--forest),var(--abyss)); color:#fff; }
+  main { width:100%; max-width:380px; }
+  .brand { display:flex; align-items:center; gap:8px; font-weight:700; color:var(--mist); margin-bottom:18px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--teal); }
+  h1 { font-size:30px; line-height:1.15; margin:0 0 6px; }
+  .when, .where { color:var(--mint); font-size:15px; margin:2px 0; }
+  .where { color:rgba(212,245,239,.8); }
+  ul { list-style:none; padding:0; margin:22px 0 4px; }
+  li { padding:9px 0 9px 22px; position:relative; border-left:2px solid rgba(255,255,255,.18); margin-left:5px; font-size:15px; }
+  li::before { content:""; position:absolute; left:-6px; top:15px; width:10px; height:10px; border-radius:50%; background:var(--mint); }
+  .lede { color:var(--mist); opacity:.85; font-size:14px; margin:26px 0 14px; }
+  a.button { display:block; text-align:center; text-decoration:none; font-weight:700; padding:15px; border-radius:999px; margin-top:10px; }
+  a.primary { background:var(--teal); color:var(--forest); }
+  a.secondary { background:rgba(255,255,255,.10); color:#fff; }
+  .error { color:var(--mist); }
+</style>
+</head>
+<body>
+<main id="app">
+  <div class="brand"><span class="dot"></span>prep</div>
+  <p class="error" id="status">Loading shared plan…</p>
+</main>
+<script>
+(async function () {
+  const app = document.getElementById('app');
+  const params = new URLSearchParams(location.search);
+  const encoded = params.get('d');
+
+  function esc(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
+
+  function base64UrlToBytes(value) {
+    let b64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const bin = atob(b64);
+    return Uint8Array.from(bin, c => c.charCodeAt(0));
+  }
+
+  async function decode(value) {
+    const stream = new Blob([base64UrlToBytes(value)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return JSON.parse(await new Response(stream).text());
+  }
+
+  function fail(message) {
+    document.getElementById('status').textContent = message;
+  }
+
+  if (!encoded) { fail('This link is missing its plan. Ask the sender to share it again.'); return; }
+
+  let payload;
+  try { payload = await decode(encoded); }
+  catch (e) { fail('This browser could not read the plan. Open the link on your iPhone with Prep installed.'); return; }
+
+  const event = payload.events && payload.events[0];
+  if (!event) { fail('This plan is empty.'); return; }
+
+  const start = new Date(event.startDate * 1000);
+  const when = start.toLocaleString(undefined, { weekday:'long', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  const extra = payload.events.length > 1 ? `<p class="when">+ ${payload.events.length - 1} more stop${payload.events.length > 2 ? 's' : ''}</p>` : '';
+  const labels = (event.planLabels || []).map(l => `<li>${esc(l)}</li>`).join('');
+
+  app.innerHTML = `
+    <div class="brand"><span class="dot"></span>prep</div>
+    <h1>${esc(event.title)}</h1>
+    <p class="when">${esc(when)}</p>
+    ${event.location ? `<p class="where">${esc(event.location)}</p>` : ''}
+    ${extra}
+    ${labels ? `<ul>${labels}</ul>` : ''}
+    <p class="lede">Open this in Prep to get your own timeline, with your travel time and routines.</p>
+    <a class="button primary" href="prep://import?d=${encodeURIComponent(encoded)}">Open in Prep</a>
+    <a class="button secondary" href="https://apps.apple.com/app/prep">Get Prep</a>`;
+})();
+</script>
+</body>
+</html>

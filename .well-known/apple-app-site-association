@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["DCFCQY9DCZ.com.andrewposada.Prep"],
+        "components": [
+          { "/": "/prep/c", "comment": "Prep shared plan links" }
+        ]
+      }
+    ]
+  }
+}
